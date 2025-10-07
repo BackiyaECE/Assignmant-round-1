@@ -59,7 +59,7 @@ You must have [Node.js](https://nodejs.org/) installed on your system.
 3.  Click **"Generate Report"**.
 4.  An alert will confirm the mock delivery, and a JSON snapshot of the scenario's results will appear below, simulating the downloadable report.
 
-## 🗃️ Storage Notes
+## Storage Notes
 
 * Scenarios are persisted in a file named **`db.json`** in the project root via `lowdb`.
 * You can inspect this file to see the saved scenarios. Deleting this file will reset the database.
