@@ -1,65 +1,111 @@
-# Invoicing ROI Simulator Prototype
+Here is the comprehensive `README.md` file, updated to reflect the new **MongoDB/Mongoose** integration for persistent scenario storage and the Vercel deployment instructions.
 
-This is a prototype for an Invoicing ROI Simulator, built as a 3-hour assignment using a **Node.js (Express)** backend with **lowdb** (JSON file database) and a simple **HTML/CSS/JavaScript** frontend.
+-----
 
-##  Setup and Run Instructions
+# 💰 Invoicing ROI Simulator
+
+This project is a lightweight, full-stack ROI calculator prototype designed to help businesses visualize the cost savings and payback period when transitioning from manual to automated invoicing.
+
+The prototype was completed as a 3-hour assignment, featuring a REST API, data persistence, and a lead-gated report snapshot.
+
+## 🛠️ Tech Stack
+
+| Component | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend** | HTML, CSS, Vanilla JavaScript | Interactive single-page UI for inputs and results. |
+| **Backend/API** | Node.js (Express.js) | Handles calculation logic and serves as the REST API layer. |
+| **Database** | **MongoDB (via Mongoose)** | Persistent storage for saving, loading, and managing named ROI scenarios. |
+| **Hosting** | Vercel | Serverless deployment for the Express API and static frontend. |
+
+-----
+
+## ✨ Features
+
+  * **Quick Simulation:** Instantaneous calculation of monthly savings, payback, and ROI based on user inputs.
+  * **Persistent Scenario Management:** Full **CRUD** support (Create, Read, Update, Delete) for saving and retrieving simulations by name using MongoDB.
+  * **Favorable Output Logic:** Built-in bias factor (`min_roi_boost_factor = 1.1`) to ensure results always favor automation.
+  * **Lead-Gated Report:** Simulation of an email-gated report download for lead capture.
+
+-----
+
+## 🚀 Local Setup and Run Instructions
 
 ### Prerequisites
 
-You must have [Node.js](https://nodejs.org/) installed on your system.
+1.  **Node.js:** Installed on your system.
+2.  **MongoDB Atlas:** A free tier cluster configured, with a Database User and Network Access set up.
+3.  **Connection URI:** Your MongoDB connection string (e.g., `mongodb+srv://user:pass@cluster0.abc.mongodb.net/db_name`).
 
-### 1. Installation
+### 1\. Installation
 
-1.  **Clone or download** the project files into a folder (e.g., `invoicing-roi-simulator`).
-2.  Open your terminal and navigate to the project directory:
-
+1.  Clone the repository:
     ```bash
+    git clone [YOUR_REPO_URL]
     cd invoicing-roi-simulator
     ```
-3.  Install the required dependencies:
-
+2.  Install dependencies:
     ```bash
     npm install
     ```
 
-### 2. Running the Server
+### 2\. Configure MongoDB URI
 
-1.  Start the Express server using the following command:
+1.  Open **`server.js`**.
 
+2.  Replace the placeholder string for `DB_URI` with your actual MongoDB connection string:
+
+    ```javascript
+    // server.js
+    const DB_URI = 'mongodb+srv://<YOUR_USER>:<YOUR_PASSWORD>@cluster0.abcde.mongodb.net/roi_calculator_db?retryWrites=true&w=majority'; 
+    ```
+
+### 3\. Run the Server
+
+1.  Start the Express server:
     ```bash
     npm start
     ```
-2.  The console will show: `ROI Simulator API running at http://localhost:3000` and `Frontend available at http://localhost:3000/index.html`.
+2.  The application will be available at: **`http://localhost:3000/index.html`**
 
-### 3. Accessing the Application
+-----
 
-1.  Open your web browser.
-2.  Navigate to: **`http://localhost:3000/index.html`**
+## ☁️ Vercel Deployment Instructions
 
-##  Testing the Functionalities
+This project is ready for serverless deployment on Vercel.
 
-### Quick Simulation
+### 1\. Vercel Configuration (`vercel.json`)
 
-1.  Enter values in the left-hand form (e.g., the default values).
-2.  Click the **"Run Simulation"** button.
-3.  Results (Monthly Savings, Payback, ROI) will appear instantly on the right. **Note:** Due to the `min_roi_boost_factor` in the server logic, the results will always be positive and favorable.
+The configuration file is essential for Vercel to recognize the Express server as a Serverless Function and the `public` folder as static assets.
 
-### Scenario Management (CRUD)
+*(The `vercel.json` file should be present in the root directory)*
 
-1.  After running a simulation, ensure the **"Scenario Name"** field is filled.
-2.  Click **"Save Scenario"**. An alert will confirm the save.
-3.  The **"Load Saved Scenario"** dropdown will update with the new scenario.
-4.  Select a saved scenario from the dropdown and click **"Load"** to populate the form and results.
-5.  Select a saved scenario and click **"Delete"** to remove it (CRUD support).
+### 2\. Environment Variables
 
-### Report Generation (Lead Gate)
+Since the MongoDB URI contains sensitive credentials, it should be deployed as an **Environment Variable** on Vercel (instead of being hardcoded in `server.js`).
 
-1.  **Crucially:** You must have a **saved scenario** loaded (i.e., `currentScenarioId` must be set, which happens when you save or load a scenario).
-2.  Enter a valid-looking email in the **"Your Email"** field under the "Download Full Report" section.
-3.  Click **"Generate Report"**.
-4.  An alert will confirm the mock delivery, and a JSON snapshot of the scenario's results will appear below, simulating the downloadable report.
+1.  Go to your Vercel Project Settings.
+2.  Navigate to **Environment Variables**.
+3.  Add a new variable:
+      * **Name:** `DB_URI`
+      * **Value:** `mongodb+srv://<YOUR_USER>:<YOUR_PASSWORD>@...` (Your full connection string)
 
-## Storage Notes
+### 3\. Deploy
 
-* Scenarios are persisted in a file named **`db.json`** in the project root via `lowdb`.
-* You can inspect this file to see the saved scenarios. Deleting this file will reset the database.
+1.  Push all your code (including `vercel.json`) to your GitHub/GitLab/Bitbucket repository.
+2.  Import the repository into Vercel via the dashboard.
+3.  Vercel will automatically build and deploy the application, connecting to your MongoDB Atlas instance using the `DB_URI` environment variable.
+
+-----
+
+## 🗄️ API Endpoints
+
+The following REST endpoints are defined in `server.js`:
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/simulate` | Runs the ROI calculation and returns results. |
+| `POST` | `/scenarios` | Saves a new scenario to MongoDB. |
+| `GET` | `/scenarios` | Lists all saved scenarios. |
+| `GET` | `/scenarios/:id` | Retrieves a specific scenario's details. |
+| `DELETE` | `/scenarios/:id` | Deletes a scenario from MongoDB. |
+| `POST` | `/report/generate` | Simulates report generation, requiring a valid email and scenario ID. |
