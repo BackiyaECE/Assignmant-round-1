@@ -2,13 +2,13 @@ Here is the comprehensive `README.md` file, updated to reflect the new **MongoDB
 
 -----
 
-# 💰 Invoicing ROI Simulator
+# Invoicing ROI Simulator
 
 This project is a lightweight, full-stack ROI calculator prototype designed to help businesses visualize the cost savings and payback period when transitioning from manual to automated invoicing.
 
 The prototype was completed as a 3-hour assignment, featuring a REST API, data persistence, and a lead-gated report snapshot.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Component | Technology | Purpose |
 | :--- | :--- | :--- |
@@ -19,7 +19,7 @@ The prototype was completed as a 3-hour assignment, featuring a REST API, data p
 
 -----
 
-## ✨ Features
+## Features
 
   * **Quick Simulation:** Instantaneous calculation of monthly savings, payback, and ROI based on user inputs.
   * **Persistent Scenario Management:** Full **CRUD** support (Create, Read, Update, Delete) for saving and retrieving simulations by name using MongoDB.
@@ -28,7 +28,7 @@ The prototype was completed as a 3-hour assignment, featuring a REST API, data p
 
 -----
 
-## 🚀 Local Setup and Run Instructions
+## Local Setup and Run Instructions
 
 ### Prerequisites
 
@@ -69,7 +69,7 @@ The prototype was completed as a 3-hour assignment, featuring a REST API, data p
 
 -----
 
-## ☁️ Vercel Deployment Instructions
+## Vercel Deployment Instructions
 
 This project is ready for serverless deployment on Vercel.
 
@@ -97,7 +97,7 @@ Since the MongoDB URI contains sensitive credentials, it should be deployed as a
 
 -----
 
-## 🗄️ API Endpoints
+## API Endpoints
 
 The following REST endpoints are defined in `server.js`:
 
