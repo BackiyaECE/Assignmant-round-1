@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoicing ROI Simulator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
+        .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); display: flex; }
+        .form-section, .results-section { flex: 1; padding: 0 15px; }
+        h1, h2 { color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .input-group input, .input-group button, #scenario-select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .input-group button { background-color: #007bff; color: white; cursor: pointer; border: none; margin-top: 10px; }
+        .input-group button:hover { background-color: #0056b3; }
+        .result-box { background: #e9f7ef; border: 1px solid #c8e6c9; padding: 15px; margin-top: 15px; border-radius: 4px; }
+        .result-box h3 { margin-top: 0; color: #2e7d32; }
+        .result-box p { margin: 5px 0; }
+        .result-value { font-size: 1.2em; font-weight: bold; color: #1b5e20; }
+        .error { color: red; margin-bottom: 10px; }
+        .scenario-controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        #report-form { padding: 15px; border: 1px solid #ffcc80; background: #fff3e0; border-radius: 4px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-section">
+            <h1>Invoicing ROI Simulator</h1>
+            
+            <div class="scenario-controls">
+                <select id="scenario-select" onchange="loadScenario()">
+                    <option value="">-- Load Saved Scenario --</option>
+                </select>
+                <button onclick="deleteScenario()">Delete</button>
+            </div>
+            
+            <form id="roi-form">
+                <div class="input-group">
+                    <label for="scenario_name">Scenario Name (for saving)</label>
+                    <input type="text" id="scenario_name" value="Q4_Pilot" required>
+                </div>
+                <div class="input-group">
+                    <label for="monthly_invoice_volume">Monthly Invoice Volume</label>
+                    <input type="number" id="monthly_invoice_volume" value="2000" required>
+                </div>
+                <div class="input-group">
+                    <label for="num_ap_staff">AP Staff Managing Invoicing</label>
+                    <input type="number" id="num_ap_staff" value="3" required>
+                </div>
+                <div class="input-group">
+                    <label for="avg_hours_per_invoice">Manual Hours Per Invoice (e.g., 0.17 for 10 mins)</label>
+                    <input type="number" id="avg_hours_per_invoice" step="0.01" value="0.17" required>
+                </div>
+                <div class="input-group">
+                    <label for="hourly_wage">Average Hourly Wage ($)</label>
+                    <input type="number" id="hourly_wage" value="30" required>
+                </div>
+                <div class="input-group">
+                    <label for="error_rate_manual">Manual Error Rate (%)</label>
+                    <input type="number" id="error_rate_manual" step="0.1" value="0.5" required>
+                </div>
+                <div class="input-group">
+                    <label for="error_cost">Cost to Fix Each Error ($)</label>
+                    <input type="number" id="error_cost" value="100" required>
+                </div>
+                <div class="input-group">
+                    <label for="time_horizon_months">Projection Period (Months)</label>
+                    <input type="number" id="time_horizon_months" value="36" required>
+                </div>
+                <div class="input-group">
+                    <label for="one_time_implementation_cost">One-Time Implementation Cost ($)</label>
+                    <input type="number" id="one_time_implementation_cost" value="50000">
+                </div>
+                <div id="error-message" class="error"></div>
+                <div class="input-group">
+                    <button type="button" onclick="runSimulation()">Run Simulation</button>
+                    <button type="button" onclick="saveScenario()">Save Scenario</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="results-section">
+            <h2>Simulation Results</h2>
+            <div id="results-display" class="result-box">
+                <p>Enter your business metrics and click "Run Simulation" to see results.</p>
+            </div>
+            
+            <div id="report-form">
+                <h3>Download Full Report (Lead Gate)</h3>
+                <p>To access the detailed report, please provide your email.</p>
+                <div class="input-group">
+                    <label for="report-email">Your Email</label>
+                    <input type="email" id="report-email" placeholder="email@example.com">
+                </div>
+                <div class="input-group">
+                    <button type="button" onclick="generateReport()">Generate Report</button>
+                </div>
+                <div id="report-message" class="error"></div>
+            </div>
+            
+            <div id="scenario-data-dump" style="margin-top: 20px;"></div>
+
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+        let currentScenarioId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchScenarios();
+        });
+
+        function getInputs() {
+            const inputs = {};
+            // Get all inputs from the form by ID and ensure they are parsed as numbers (except name)
+            document.querySelectorAll('#roi-form input').forEach(input => {
+                const value = input.id === 'scenario_name' ? input.value : parseFloat(input.value);
+                inputs[input.id] = value;
+            });
+            // Ensure optional cost is treated as 0 if empty
+            if (isNaN(inputs.one_time_implementation_cost)) {
+                inputs.one_time_implementation_cost = 0;
+            }
+            return inputs;
+        }
+
+        async function runSimulation() {
+            const inputs = getInputs();
+            document.getElementById('error-message').textContent = '';
+
+            try {
+                // CORRECTED: Use template literal for URL
+                const response = await fetch(`${API_URL}/simulate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(inputs)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    // CORRECTED: Use template literal for error message
+                    document.getElementById('error-message').textContent = `Error: ${error.error}`;
+                    return;
+                }
+
+                const data = await response.json();
+                displayResults(data.results);
+                // Store the inputs in a global-like variable to reference for report generation
+                currentScenarioId = null; // Mark as unsaved simulation
+                document.getElementById('scenario-data-dump').innerHTML = '<p>Current simulation data is not saved. Save to generate a report.</p>';
+
+            } catch (error) {
+                console.error('Simulation failed:', error);
+                document.getElementById('error-message').textContent = 'An unexpected error occurred. Check console.';
+            }
+        }
+
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('results-display');
+            // CORRECTED: Use template literal for innerHTML
+            resultsDiv.innerHTML = `
+                <h3>Savings Summary (Bias-Favored)</h3>
+                <p>Monthly Savings: <span class="result-value">$${parseFloat(results.monthly_savings).toLocaleString()}</span></p>
+                <p>Payback Period: <span class="result-value">${results.payback_months} Months</span></p>
+                <p>ROI (${results.time_horizon_months} Months): <span class="result-value">${results.roi_percentage}%</span></p>
+                <hr>
+                <p>Cumulative Savings: $${parseFloat(results.cumulative_savings).toLocaleString()}</p>
+                <p>Net Savings: $${parseFloat(results.net_savings).toLocaleString()}</p>
+                <p class="small-print">Manual Cost: $${parseFloat(results.cost_manual).toLocaleString()} | Auto Cost: $${parseFloat(results.cost_auto).toLocaleString()} | Error Savings: $${parseFloat(results.error_savings).toLocaleString()}</p>
+            `;
+        }
+        
+        async function fetchScenarios() {
+            const select = document.getElementById('scenario-select');
+            select.innerHTML = '<option value="">-- Load Saved Scenario --</option>';
+
+            try {
+                // CORRECTED: Use template literal for URL
+                const response = await fetch(`${API_URL}/scenarios`);
+                const scenarios = await response.json();
+
+                scenarios.forEach(scenario => {
+                    const option = document.createElement('option');
+                    option.value = scenario.id;
+                    // CORRECTED: Use template literal for option text
+                    option.textContent = `${scenario.scenario_name} ($${parseFloat(scenario.monthly_savings).toLocaleString()}/mo)`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to fetch scenarios:', error);
+            }
+        }
+
+        async function saveScenario() {
+            const inputs = getInputs();
+            document.getElementById('error-message').textContent = '';
+            
+            try {
+                // CORRECTED: Use template literal for URL
+                const response = await fetch(`${API_URL}/scenarios`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(inputs)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    // CORRECTED: Use template literal for error message
+                    document.getElementById('error-message').textContent = `Save Error: ${error.error}`;
+                    return;
+                }
+
+                const data = await response.json();
+                // CORRECTED: Use template literal for alert
+                alert(`Scenario "${data.scenario_name}" saved successfully!`);
+                currentScenarioId = data.id;
+                displayResults(data.results);
+                fetchScenarios();
+                
+            } catch (error) {
+                console.error('Save failed:', error);
+                document.getElementById('error-message').textContent = 'An unexpected error occurred while saving.';
+            }
+        }
+
+        async function loadScenario() {
+            const id = document.getElementById('scenario-select').value;
+            if (!id) return;
+
+            try {
+                // CORRECTED: Use template literal for URL
+                const response = await fetch(`${API_URL}/scenarios/${id}`);
+                if (!response.ok) throw new Error('Scenario not found');
+                
+                const scenario = await response.json();
+                
+                // Populate the form with saved inputs
+                Object.keys(scenario.inputs).forEach(key => {
+                    const input = document.getElementById(key);
+                    if (input) {
+                        input.value = scenario.inputs[key];
+                    }
+                });
+                
+                displayResults(scenario.results);
+                currentScenarioId = scenario.id; // Update current ID for reporting
+                // CORRECTED: Use template literal for innerHTML
+                document.getElementById('scenario-data-dump').innerHTML = `<p><strong>Loaded Scenario ID:</strong> ${currentScenarioId}</p>`;
+
+            } catch (error) {
+                console.error('Load failed:', error);
+                alert('Failed to load scenario.');
+            }
+        }
+        
+        async function deleteScenario() {
+             const id = document.getElementById('scenario-select').value;
+            if (!id) {
+                alert("Please select a scenario to delete.");
+                return;
+            }
+            if (!confirm("Are you sure you want to delete this scenario?")) return;
+
+             try {
+                // CORRECTED: Use template literal for URL
+                const response = await fetch(`${API_URL}/scenarios/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) throw new Error('Deletion failed');
+
+                alert('Scenario deleted successfully!');
+                fetchScenarios();
+                currentScenarioId = null;
+                // You might want to clear the form and results display here too
+                
+            } catch (error) {
+                console.error('Delete failed:', error);
+                alert('Failed to delete scenario.');
+            }
+        }
+
+        async function generateReport() {
+            const email = document.getElementById('report-email').value;
+            document.getElementById('report-message').textContent = '';
+
+            if (!currentScenarioId) {
+                document.getElementById('report-message').textContent = 'Please save a scenario before generating a report.';
+                return;
+            }
+            if (!email || !email.includes('@')) {
+                document.getElementById('report-message').textContent = 'Please enter a valid email address.';
+                return;
+            }
+
+            try {
+                // CORRECTED: Use template literal for URL
+                const response = await fetch(`${API_URL}/report/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, scenarioId: currentScenarioId })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    // CORRECTED: Use template literal for error message
+                    document.getElementById('report-message').textContent = `Report Error: ${error.error}`;
+                    return;
+                }
+
+                const data = await response.json();
+                
+                alert(data.message);
+                // For the prototype, we just display the returned data as a "report snapshot"
+                // CORRECTED: Use template literal for innerHTML
+                document.getElementById('report-message').innerHTML = `
+                    <p style="color: blue;">Mock Report Generated! Data for ${data.scenario_data.scenario_name}:</p>
+                    <pre style="background: #eee; padding: 10px; white-space: pre-wrap;">${JSON.stringify(data.scenario_data.results, null, 2)}</pre>
+                `;
+
+            } catch (error) {
+                console.error('Report generation failed:', error);
+                document.getElementById('report-message').textContent = 'An unexpected error occurred during report generation.';
+            }
+        }
+
+    </script>
+</body>
+</html>
